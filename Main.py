@@ -1,4 +1,5 @@
 for i in range(50):
+<<<<<<< HEAD
     print(i + 2)
 =======
     print(i + ". Hola2")
