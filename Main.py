@@ -4,79 +4,259 @@ from tkinter import filedialog #Manejo de archivos
 from PIL import ImageTk, Image #Manejo de imágenes
 import os
 
+import Functions as fn
+
 #-------------------------------------------------------
 #Constantes
 
 #-------------------------------------------------------
 #Funciones
 
-#Función que muestra al usuario una ventana de búsqueda de archivos y asigna a resultStr el directorio donde se encuentra una imagen válida
-#resultStr es un tkinter.StringVar()
-def browseImgFile(resultStr):
+#Función que muestra al usuario una ventana de búsqueda de archivos y asigna a pathStrVar el directorio donde se encuentra una imagen válida
+#Despues actualiza la imagen dentro de GUI
+#pathStrVar es un tkinter.StringVar()
+#imagePI es un tkinter.PhotoImage
+#imageLbl es un tkinter.Label usado para colocar la imagen
+def browseImgFile():
+    errorStrVar = cs.getElemFromCurr("errorStrVar") 
     
-    #https://stackoverflow.com/questions/19944712/browse-for-file-path-in-python
-    currdir = os.getcwd()
+    currdir = os.getcwd()   
 
-    #https://docs.python.org/3.9/library/dialog.html
-    tempdir = filedialog.askopenfilename(parent=root, initialdir = currdir, title = 'Seleccione un archivo de imagen') #Ventana emergente
+    try:
+        #https://docs.python.org/3.9/library/dialog.html
+        tempdir = filedialog.askopenfilename(parent = root, initialdir = currdir, title = 'Seleccione un archivo de imagen') #Ventana emergente
+        #https://www.thetopsites.net/article/53470882.shtml
+        
+        if len(tempdir) > 0 and tempdir.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')): #Archivos de imagen soportados
+            pathStrVar = cs.getElemFromCurr("pathStrVar")
+            pathStrVar.set(tempdir) #Asigna la imagen válida que se encontró
+            
+            errorStrVar.set("")
 
-    #https://www.thetopsites.net/article/53470882.shtml
-    if len(tempdir) > 0 and tempdir.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')): #Archivos de imagen soportados
-        resultStr.set(tempdir) #Asigna la imagen válida que se encontró
+            imagePI = cs.getElemFromCurr("imagePI")
+            
+            imageLbl = cs.getWidgFromCurr("imageLbl")
 
-    else:
-        print("Archivo no valido")        
+            #https://stackoverflow.com/questions/3482081/how-to-update-the-image-of-a-tkinter-label-widget
+            imagePI = ImageTk.PhotoImage(Image.open(tempdir))
+            imageLbl.configure(image = imagePI)
+            imageLbl.image = imagePI
+
+        else:
+            #Muestra mensaje de error en caso de que no se elija un archivo adecuado
+            errorStrVar.set("Archivo no válido, elija uno soportado por el programa (.png, .jpg, .jpeg, .tiff, .bmp, .gif)")
+            print("Archivo no valido")
+
+    except:
+        errorStrVar.set("Archivo no válido, elija uno soportado por el programa (.png, .jpg, .jpeg, .tiff, .bmp, .gif)")
+        print("Se cerro ventana")
 
     return
 
 #-------------------------------------------------------
 #Clases
 
+#Esta clase se usa para mantener información a través de la progresión del programa
 class CurrentState:
 
+    #Método constructor
     def __init__(self):
-        self.currRelImgPath = 2
+        self.windowStack = {} #Lista de objetos ventana con estructura de stack (First in, Last out)
+        self.numWindows = 0
+
+        self.currWindowSet = None
 
 
+    #Método que agrega una ventana en el stack del programa
+    #newScreen es un objeto Tk() o Toplevel()
+    def addNewWindow(self, newWindow, windowName):        
+        
+        if(self.numWindows > 0): #Si hay una ventana que se pueda ocultar
+            self.getLastStackElement().window.withdraw() #Oculta ventana anterior
+
+        self.currWindowSet = WindowSet(newWindow, windowName)
+
+        self.addToStack(self.currWindowSet, windowName)
+
+        
+    #Metodo para agregar un widget a la lista de la ventana actual
+    def addNewWidgetToCurr(self, newWidget, widgetName):
+        self.currWindowSet.addWidgetChild(newWidget, widgetName)
 
 
+    #Metodo para obtener un widget de la ventana actual
+    def getWidgFromCurr(self, widgetKey):
+        return self.currWindowSet.childPackOrder[widgetKey]
 
+
+    #Metodo para obtener un elemento no-widget de la ventana actual
+    def getElemFromCurr(self, elemKey):
+        return self.currWindowSet.otherElements[elemKey]
+
+
+    #Metodo para agregar un no-widget a la lista de la ventana actual
+    def addNewElemToCurr(self, newElem, elem):
+        self.currWindowSet.addNonWidgChild(newElem, elem)
+        
+
+    #Metodo que muestra unicamente ventana anterior en stack, y destruye ventanas posteriores
+    def showPrevScreen(self):
+        if(self.numWindows > 1): #Verifica que hayan ventanas que se puedan remover, si =1, solo se tiene root            
+            tempWd = self.removeFromStack()
+            self.getLastStackElement().window.deiconify()
+            tempWd.destroy()
+            
+
+    #Agrega nuevo elem al stack
+    def addToStack(self, newElement, objectKey):
+        self.windowStack[objectKey] = newElement 
+
+        self.numWindows += 1
+        
+
+    #Metodo que remueve y retorna ultimo elem en stack.
+    #Si no hay items en windowStack, devuelve nulo
+    def removeFromStack(self):
+        temp = None
+
+        if(self.numWindows > 0):
+            temp = self.windowStack.popitem()[-1] #Remueve ultimo elem del stack
+            self.numWindows -= 1
+
+        return temp
+    
+    
+    #Metodo que retorna ultima ventana objeto de lista
+    def getLastStackElement(self):
+        temp = self.windowsToList()
+        return temp[-1]
+
+
+    #Metodo que devuelve los elementos del diccionario como una lista, sin las llaves
+    def windowsToList(self):
+        return list(self.windowStack.values())
+
+
+#Clase para agrupar ventana y widgets hijos, junto con informacion de cada uno
+#Esta clase sirve principalmente para organizar clase CurrentState
+class WindowSet:
+
+    #Metodo constructor
+    def __init__(self, window ,windowName):
+        self.name = windowName
+        self.window = window
+
+        self.childPackOrder = {}
+        self.otherElements = {}
+
+
+    #Metodo destructor
+    def __del__(self):
+        self.window.destroy()
+        
+
+    #Metodo para asegurarse de eliminar ventana
+    def destroy(self):
+        self.__del__()
+
+
+    #Agrega widget hijo a diccionario
+    def addWidgetChild(self, widget, widgetName):
+        self.childPackOrder[widgetName] = widget
+        
+
+    #Agrega hijo no-widget a diccionario
+    def addNonWidgChild(self, elem, elemName):
+        self.otherElements[elemName] = elem
+        
+
+    #Realiza pack() a todos los hijos de ventana, en el orden en el que se agregaron
+    def packAllChildren(self):
+        tempItems = list(self.childPackOrder.values())
+
+        for item in tempItems:
+            item.pack()
 
 #-------------------------------------------------------
 #Programa principal
 
-
-##Mostrar tamano, 
-def mainScreen():
-    #https://www.youtube.com/watch?v=YXPyB4XeYLA&ab_channel=freeCodeCamp.org
+#Esta función muestra la ventana inicial del programa 
+def mainScreen():   
     titleLbl = Label(root, text = "Tarea 1 - Principios de utilización del color")
     pathStrVar = StringVar()
 
-    filePathLbl = Label(root, textvariable = pathStrVar)
-    browseBtn = Button(root, text = "Buscar imagen", command = lambda: browseImgFile(pathStrVar))
-    nextBtn = Button(root, text = "Siguiente")
-
     #http://effbot.org/pyfaq/why-do-my-tkinter-images-not-appear.htm
-    imagePI = ImageTk.PhotoImage(Image.open("Imágenes Prueba/paisajeBW2.jpg"))
-    imageLbl = Label(image = imagePI)
+    #https://www.c-sharpcorner.com/blogs/basics-for-displaying-image-in-tkinter-python#:~:text=To%20display%20images%20in%20labels,is%20present%20in%20tkinter%20package.&text=%22PhotoImage()%22%20function%20returns%20the%20image%20object.&text=To%20display%20image%20in%20Python,GIF%20and%20PGM%2FPPM%20formats.
+    imagePI = ImageTk.PhotoImage(Image.open("Imágenes Prueba/vistaPrevia.png"))
+    imageLbl = Label(root, image = imagePI)
     imageLbl.image = imagePI # keep a reference!
+     
+    filePathLbl = Label(root, textvariable = pathStrVar)
+    browseBtn = Button(root, text = "Buscar imagen", command = browseImgFile)
+    nextBtn = Button(root, text = "Siguiente", command = clasifScreen)
+    errorStrVar = StringVar("")
+    errorLbl = Label(root, textvariable = errorStrVar)
     
+    cs.addNewWidgetToCurr(titleLbl, "titleLbl")
+    cs.addNewWidgetToCurr(imageLbl,"imageLbl")
+    cs.addNewWidgetToCurr(filePathLbl,"filePathLbl")
+    cs.addNewWidgetToCurr(browseBtn,"browseBtn")
+    cs.addNewWidgetToCurr(nextBtn,"nextBtn")
+    cs.addNewWidgetToCurr(errorLbl,"errorLbl")
 
-    titleLbl.pack()
-    imageLbl.pack()
-    filePathLbl.pack()
-    browseBtn.pack()
-    nextBtn.pack()
+    cs.addNewElemToCurr(pathStrVar, "pathStrVar")
+    cs.addNewElemToCurr(imagePI, "imagePI")
+    cs.addNewElemToCurr(errorStrVar,"errorStrVar")
 
-    
+    #Coloca widgets en pantalla
+    cs.currWindowSet.packAllChildren()
 
+        
 def clasifScreen():
-    return
+
+    pathStrVar = cs.getElemFromCurr("pathStrVar")
     
+    if(pathStrVar.get() == ""):
+        errorStrVar = cs.getElemFromCurr("errorStrVar")
+        errorStrVar.set("Elija primero una imagen")
+
+    else:
+        clasifWd = Toplevel(root)
+        cs.addNewWindow(clasifWd, "clasifWd")
+
+        titleLbl = Label(clasifWd, text = "Tarea 1 - Principios de utilización del color")
+
+        imagePI = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
+        imageLbl = Label(clasifWd, image = imagePI)
+        imageLbl.image = imagePI # keep a reference!
+
+        clasifLbl = Label(clasifWd, text = "-Clasificación-")
+
+        backBtn = Button(clasifWd, text = "Volver", command = cs.showPrevScreen)
+        nextBtn = Button(clasifWd, text = "Siguiente")
+
+        cs.addNewWidgetToCurr(titleLbl,"titleLbl")
+        cs.addNewWidgetToCurr(imageLbl,"imageLbl")
+        cs.addNewWidgetToCurr(clasifLbl,"clasifLbl")
+        cs.addNewWidgetToCurr(backBtn,"backBtn")
+        cs.addNewWidgetToCurr(nextBtn,"nextBtn")
+
+        cs.addNewElemToCurr(imagePI, "imagePI")
+
+        cs.currWindowSet.packAllChildren()
     
 
+#Pantalla raíz
 root = Tk()
+
+#Crea instancia global de CurrentState y guarda root
+cs = CurrentState()
+cs.addNewWindow(root, "root")
+
+#Se abre pantalla inicial
 mainScreen()
+
+#Comienza loop para mantener GUI
 root.mainloop()
 
 
