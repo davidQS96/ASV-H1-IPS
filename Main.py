@@ -2,6 +2,7 @@
 from tkinter import * #Para GUI (filedialog, etc)
 from tkinter import filedialog #Manejo de archivos
 from PIL import ImageTk, Image #Manejo de imágenes
+import numpy as np
 import os
 
 import Functions as fn
@@ -197,6 +198,7 @@ def mainWindow():
     #http://effbot.org/pyfaq/why-do-my-tkinter-images-not-appear.htm
     #https://www.c-sharpcorner.com/blogs/basics-for-displaying-image-in-tkinter-python#:~:text=To%20display%20images%20in%20labels,is%20present%20in%20tkinter%20package.&text=%22PhotoImage()%22%20function%20returns%20the%20image%20object.&text=To%20display%20image%20in%20Python,GIF%20and%20PGM%2FPPM%20formats.
     imagePI = ImageTk.PhotoImage(Image.open("paisajeRGB2.jpg")) #Devolver a "Imágenes Prueba/vistaPrevia.png"
+    print(np.array(Image.open("paisajeRGB2.jpg")))
     pathStrVar.set("paisajeRGB2.jpg") #Borrar
     imageLbl = Label(root, image = imagePI)
     imageLbl.image = imagePI # keep a reference!
@@ -317,6 +319,16 @@ def contrastWindow():
     cs.addNewWidgetToCurr(nextBtn,"nextBtn")
 
     cs.currWindowSet.packAllChildren()
+
+   
+
+
+
+
+
+
+
+    
 
 #Pantalla raíz
 root = Tk()

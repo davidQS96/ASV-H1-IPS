@@ -8,6 +8,8 @@ import math
 from skimage.filters.rank import median
 from skimage.morphology import disk
 from skimage.morphology import diamond
+from skimage import exposure
+import os
 """
 importar requiere el nombre del archivo como string
 
@@ -34,6 +36,99 @@ def importar(direccion):
             img = red
             color = False
     return img, color, dimen
+
+
+
+
+
+
+#Funcion que devuelve una imagen e histograma de intensidad al aplicar un aumento de contraste
+#direccion es la ruta relativa de la imagen
+#esGris es un booleano si imagen esta en tonos de gris
+#porciento es el porcentaje de brillo de los extremos del histograma que no se contemplan por el algoritmo
+def maxContraste(direccion, esGris, porciento):
+
+    if porciento < 0 or porciento > 10:
+        return None #Deberia aparecer mensaje de error cuando devuelva None
+
+    img = io.imread(direccion)
+
+    if(esGris):
+        img = color.gray2rgb(img)
+
+    return maxContrasteAux(img, porciento)
+    
+
+#Esta funcion crea un histograma de intensidad de una imagen (HSI, tono de gris en caso de imagenes correspondientes)
+#Devuelve el histograma en forma de numpy.ndarray
+#img es la imagen con forma numpy.ndarray
+#titulo es del histograma
+#nombreArchivo es el nombre con el que se guardara
+#aBorrar es verdadero si se quiere borrar el archivo generado
+def crearHistograma(img, titulo = "Histograma de intensidad", nombreArchivo = "hist", aBorrar = True):
+    histogram, bin_edges = numpy.histogram(img, bins = 256, range = (0, 255)) #calculating histogram
+
+    #Ejes, titulos de ejes, rangos
+    plt.figure()
+    plt.title(titulo)
+    plt.xlabel("Valor de intensidad")
+    plt.ylabel("# Píxeles")
+    plt.xlim([0, 255])  # <- named arguments do not work here
+
+    plt.plot(bin_edges[0 : -1], histogram)
+
+    path = "tempFiles/"+ nombreArchivo + ".png"
+    
+    plt.savefig(path) #Guarda un archivo en computadora
+
+    temp = io.imread(path)
+
+    if aBorrar:
+        os.remove(path) #Se borra archivo en computadora, si se desea
+
+    return temp
+
+
+
+#Funcion auxiliar para maxContraste
+#Genera el maximo de contraste que se quiera segun un porcentaje de 0 a 10%
+#Devuelve el histograma de intensidad posterior y la imagen con maximo de color
+#imgRGB es la imagen en formato RGB (3 canales)
+#porciento es el porciento de brillo
+def maxContrasteAux(imgRGB, porciento):
+    imgHSV = color.rgb2hsv(imgRGB)  
+    
+    intensidad = imgHSV[:,:,2] * 255
+
+    #https://numpy.org/doc/stable/reference/generated/numpy.percentile.html
+    #https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_equalize.html
+    
+    #Se ordenan los datos y se obtienen los valores cuyas posiciones porcentuales se piden
+    #El pi es el percentil inicial porciento%, mientras que pf es el percentil final (100-porciento)%
+    pi, pf = numpy.percentile(intensidad, (porciento, 100 - porciento)) 
+
+    #https://scikit-image.org/docs/dev/api/skimage.exposure.html?highlight=rescale_intensity#skimage.exposure.rescale_intensity
+    #Esta funcion comprime o expande el rango de valores comprendidos entre pi y pf, sin rellenar valores intermedios de haber
+    intModif = exposure.rescale_intensity(intensidad, in_range = (pi, pf))
+    
+    imgHSV[:,:,2] = intModif
+
+    newRGB = color.hsv2rgb(imgHSV)
+
+    histPost = crearHistograma(intModif * 255)
+
+    return newRGB, histPost
+
+maxContraste("lowContrastRGB.jpg", False, 4)
+
+
+
+
+
+
+
+    
+    
 
 
 """
