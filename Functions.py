@@ -42,30 +42,41 @@ entradas
 imagen: imagen que se desea modificar color o grises
 color: valor booleano, true si es a color o false si es grises
 intensidad: valor booleano, true para elevado o false para moderado
-crojo,cverde,cazul: valor booleano, opcional, true si se desea modificar un canal
+unsolocolor: valor booleano, true para filtrar en un solo color; necesita los valores roj,ver,azu
+roj,ver,azu: valor de color en cada canal RGB
 
 la función retorna la imagen filtrado
 
 """
-def filtrosalpimienta(imagen,color,intensidad,crojo=None,cverde=None,cazul=None):
+def filtrosalpimienta(imagen,rgb,intensidad,unsolocolor,roj=None,ver=None,azu=None):
     if intensidad == True:
         dureza = 3
     else:
         dureza = 1
-    if color == True:
-        red = imagen[:,:,0]
-        green = imagen[:,:,1]
-        blue = imagen[:,:,2]
-        final = imagen
-        if crojo == True:
-            finalr = median(red,disk(dureza)) 
-            final[:,:,0] = finalr
-        if cverde == True:
-            finalg = median(green,disk(dureza)) 
-            final[:,:,1] = finalg
-        if cazul == True:
-            finalb = median(blue,disk(dureza))  
-            final[:,:,2] = finalb
+    if rgb == True:
+        fil = imagen.copy()
+        cont = 0
+        while cont < 3:
+            fil[:,:,cont] = median(imagen[:,:,cont],disk(dureza)) 
+            cont = cont +1
+        if unsolocolor == True:
+          orig = imagen.copy()
+          red = imagen[:,:,0] == roj
+          green = imagen[:,:,1] == ver
+          blue = imagen[:,:,2] == azu
+          parte = red == green
+          parte = parte == blue
+          contraparte = ~parte 
+          seccion = fil.copy()
+          resto = orig.copy()
+          a = 0
+          while a < 3:
+              seccion[:,:,a]=seccion[:,:,a]*parte
+              resto[:,:,a]=resto[:,:,a]*contraparte
+              a=a+1
+          final = resto+seccion
+        else:
+            final = fil
     else:
         final = median(imagen,disk(dureza))
     return final
