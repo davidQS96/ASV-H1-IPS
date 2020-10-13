@@ -4,7 +4,7 @@ from tkinter import filedialog #Manejo de archivos
 from PIL import ImageTk, Image #Manejo de imágenes
 import numpy as np
 import os
-
+from skimage import io
 import Functions as fn
 
 #-------------------------------------------------------
@@ -304,7 +304,7 @@ def contrastWindow():
     maxContrBtn = Button(contrastWd, text = "Usar imagen con contraste máximo")
 
     backBtn = Button(contrastWd, text = "Volver", command = cs.showPrevWindow)
-    nextBtn = Button(contrastWd, text = "Siguiente")
+    nextBtn = Button(contrastWd, text = "Siguiente", command = menufiltrado)
 
 
     #Agrega Widgets a padre
@@ -320,7 +320,136 @@ def contrastWindow():
 
     cs.currWindowSet.packAllChildren()
 
-   
+def menufiltrado():
+    def mostrar():
+        global filtrada
+        a = sal.get()
+        b = gaus.get()
+        c = col.get()
+        d = dur.get()
+        r = 0
+        g = 0
+        bl = 0
+        if c == 1:
+            r = int(red.get())
+            g = int(green.get())
+            bl = int(blue.get())
+        print (c,r,g,bl)
+        if a == 1 and b == 1:
+            print ("error")
+        elif a == 1:
+            filtrada = fn.filtrosalpimienta(modifImg,hasColor,d,c,r,g,bl)
+            print ("a")
+        elif b == 1:
+            filtrada = fn.gaussiano(modifImg,hasColor,d,c,r,g,bl)
+            print ("b")
+        return filtrada
+    pathStrVar = cs.globalElems["pathStrVar"]
+    
+    menufiltradoWd = Toplevel(root)
+    cs.addNewWindow(menufiltradoWd, "menufiltradoWd")    
+
+    titleLbl = Label(menufiltradoWd, text = "Tarea 1 - Principios de utilización del color")
+
+    originalLbl = Label(menufiltradoWd, text = "Imagen original:")
+
+    imagePI = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
+    imageLbl = Label(menufiltradoWd, image = imagePI)
+    imageLbl.image = imagePI # keep a reference!
+
+    #Uso de funcion propia de clasificacion
+    modifImg, hasColor, imgDim = fn.importar(pathStrVar.get())
+
+    #Casillas para funciones
+    sal = IntVar()
+    csal = Checkbutton(menufiltradoWd, text = "Filtro para ruido sal y pimienta", variable=sal)
+    gaus = IntVar()
+    cgaus = Checkbutton(menufiltradoWd, text = "Filtro para ruido gaussiano", variable=gaus)
+    
+    #Dureza
+    dur = IntVar()
+    cdur = Checkbutton(menufiltradoWd, text = "Filtrado elevado", variable=dur)
+    
+    #Selección de color
+    col = IntVar()
+    ccol = Checkbutton(menufiltradoWd, text = "Filtrar un color", variable=col)
+    
+    colcond = Label(menufiltradoWd, text = "Inserte el color a filtrar en RGB")
+    cred = Label(menufiltradoWd, text = "Valor canal rojo")
+    red = Entry(menufiltradoWd)
+    cgreen = Label(menufiltradoWd, text = "Valor canal verde")
+    green = Entry(menufiltradoWd)
+    cblue = Label(menufiltradoWd, text = "Valor canal azul")
+    blue = Entry(menufiltradoWd)
+    
+
+    maxContrBtn = Button(menufiltradoWd, text = "Filtar imagen", command = mostrar)
+
+    backBtn = Button(menufiltradoWd, text = "Volver", command = cs.showPrevWindow)
+    nextBtn = Button(menufiltradoWd, text = "Visualizar", command = filtersaltWindow)
+
+
+    #Agrega Widgets a padre
+    cs.addNewWidgetToCurr(titleLbl, "titleLbl")
+    cs.addNewWidgetToCurr(originalLbl, "originalLbl")
+    cs.addNewWidgetToCurr(imageLbl, "imageLbl")
+    cs.addNewWidgetToCurr(csal, "csal")
+    cs.addNewWidgetToCurr(cgaus, "cgaus")
+    cs.addNewWidgetToCurr(cdur, "cdur")
+    cs.addNewWidgetToCurr(ccol, "ccol")
+    cs.addNewWidgetToCurr(colcond, "colcond")
+    cs.addNewWidgetToCurr(cred, "cred")
+    cs.addNewWidgetToCurr(red, "red")
+    cs.addNewWidgetToCurr(cgreen, "cgreen")
+    cs.addNewWidgetToCurr(green, "green")
+    cs.addNewWidgetToCurr(cblue, "cblue")
+    cs.addNewWidgetToCurr(blue, "blue")
+    cs.addNewWidgetToCurr(maxContrBtn,"maxContrBtn")
+    cs.addNewWidgetToCurr(backBtn, "backBtn")
+    cs.addNewWidgetToCurr(nextBtn,"nextBtn")
+
+    cs.currWindowSet.packAllChildren()
+    
+
+
+def filtersaltWindow():
+    
+    
+    
+    pathStrVar = cs.globalElems["pathStrVar"]
+    
+    filtersaltWd = Toplevel(root)
+    cs.addNewWindow(filtersaltWd, "filtersaltWd")    
+
+    titleLbl = Label(filtersaltWd, text = "Tarea 1 - Principios de utilización del color")
+
+    #Uso de funcion propia de clasificacion
+    modifImg, hasColor, imgDim = fn.importar(pathStrVar.get())
+    
+    modifLbl = Label(filtersaltWd, text = "Imagen modificada:")
+    
+    modifPI = ImageTk.PhotoImage(Image.fromarray(filtrada))
+    modifImgLbl = Label(filtersaltWd, image = modifPI)
+    modifImgLbl.image = modifPI # keep a reference!
+
+    def guardar():
+        io.imsave("filtrada.jpg",filtrada)
+
+
+
+
+    backBtn = Button(filtersaltWd, text = "Volver", command = cs.showPrevWindow)
+    nextBtn = Button(filtersaltWd, text = "Guardar", command = guardar)
+    
+
+    #Agrega Widgets a padre
+    cs.addNewWidgetToCurr(titleLbl, "titleLbl")
+    cs.addNewWidgetToCurr(modifLbl, "modifLbl")
+    cs.addNewWidgetToCurr(modifImgLbl, "modifImgLbl")
+    cs.addNewWidgetToCurr(backBtn, "backBtn")
+    cs.addNewWidgetToCurr(nextBtn,"nextBtn")
+
+    cs.currWindowSet.packAllChildren()   
 
 
 
