@@ -28,7 +28,7 @@ def browseImgFile():
         #https://www.thetopsites.net/article/53470882.shtml
         
         if len(tempdir) > 0 and tempdir.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')): #Archivos de imagen soportados
-            pathStrVar = cs.getElemFromCurr("pathStrVar")
+            pathStrVar = cs.globalElems["pathStrVar"]
             pathStrVar.set(tempdir) #Asigna la imagen válida que se encontró
             
             errorStrVar.set("")
@@ -66,6 +66,8 @@ class CurrentState:
 
         self.currWindowSet = None
 
+        self.globalElems = {} #Lista/diccionarios con elementos que se usan en todo el programa
+
 
     #Método que agrega una ventana en el stack del programa
     #newScreen es un objeto Tk() o Toplevel()
@@ -77,6 +79,10 @@ class CurrentState:
         self.currWindowSet = WindowSet(newWindow, windowName)
 
         self.addToStack(self.currWindowSet, windowName)
+
+    #Método que agrega un elemento global
+    def addNewGlobElem(self, newElem, elemName):
+        self.globalElems[elemName] = newElem 
 
         
     #Metodo para agregar un widget a la lista de la ventana actual
@@ -100,10 +106,11 @@ class CurrentState:
         
 
     #Metodo que muestra unicamente ventana anterior en stack, y destruye ventanas posteriores
-    def showPrevScreen(self):
+    def showPrevWindow(self):
         if(self.numWindows > 1): #Verifica que hayan ventanas que se puedan remover, si =1, solo se tiene root            
             tempWd = self.removeFromStack()
-            self.getLastStackElement().window.deiconify()
+            self.currWindowSet = self.getLastStackElement()
+            self.currWindowSet.window.deiconify()
             tempWd.destroy()
             
 
@@ -181,22 +188,27 @@ class WindowSet:
 #Programa principal
 
 #Esta función muestra la ventana inicial del programa 
-def mainScreen():   
-    titleLbl = Label(root, text = "Tarea 1 - Principios de utilización del color")
+def mainWindow():
+
+    titleLbl = Label(root, text = cs.globalElems["titulo"])
     pathStrVar = StringVar()
+    cs.addNewGlobElem(pathStrVar, "pathStrVar")
 
     #http://effbot.org/pyfaq/why-do-my-tkinter-images-not-appear.htm
     #https://www.c-sharpcorner.com/blogs/basics-for-displaying-image-in-tkinter-python#:~:text=To%20display%20images%20in%20labels,is%20present%20in%20tkinter%20package.&text=%22PhotoImage()%22%20function%20returns%20the%20image%20object.&text=To%20display%20image%20in%20Python,GIF%20and%20PGM%2FPPM%20formats.
-    imagePI = ImageTk.PhotoImage(Image.open("Imágenes Prueba/vistaPrevia.png"))
+    imagePI = ImageTk.PhotoImage(Image.open("paisajeRGB2.jpg")) #Devolver a "Imágenes Prueba/vistaPrevia.png"
+    pathStrVar.set("paisajeRGB2.jpg") #Borrar
     imageLbl = Label(root, image = imagePI)
     imageLbl.image = imagePI # keep a reference!
-     
+
+    #Widgets y similares
     filePathLbl = Label(root, textvariable = pathStrVar)
     browseBtn = Button(root, text = "Buscar imagen", command = browseImgFile)
-    nextBtn = Button(root, text = "Siguiente", command = clasifScreen)
+    nextBtn = Button(root, text = "Siguiente", command = clasifWindow)
     errorStrVar = StringVar("")
     errorLbl = Label(root, textvariable = errorStrVar)
-    
+
+    #Agrega Widgets a padre
     cs.addNewWidgetToCurr(titleLbl, "titleLbl")
     cs.addNewWidgetToCurr(imageLbl,"imageLbl")
     cs.addNewWidgetToCurr(filePathLbl,"filePathLbl")
@@ -211,11 +223,11 @@ def mainScreen():
     #Coloca widgets en pantalla
     cs.currWindowSet.packAllChildren()
 
-        
-def clasifScreen():
+#clasifWindow clasifica la imagen, y la convierte a formatos de tono de gris de ser necesario      
+def clasifWindow():
 
-    pathStrVar = cs.getElemFromCurr("pathStrVar")
-    
+    #Muestra mensaje de error si no se ha elegido imagen aun
+    pathStrVar = cs.globalElems["pathStrVar"]
     if(pathStrVar.get() == ""):
         errorStrVar = cs.getElemFromCurr("errorStrVar")
         errorStrVar.set("Elija primero una imagen")
@@ -224,27 +236,87 @@ def clasifScreen():
         clasifWd = Toplevel(root)
         cs.addNewWindow(clasifWd, "clasifWd")
 
+        #Widgets y similares
         titleLbl = Label(clasifWd, text = "Tarea 1 - Principios de utilización del color")
+
+        originalLbl = Label(clasifWd, text = "Imagen original:")
 
         imagePI = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
         imageLbl = Label(clasifWd, image = imagePI)
         imageLbl.image = imagePI # keep a reference!
 
-        clasifLbl = Label(clasifWd, text = "-Clasificación-")
+        #Uso de funcion propia de clasificacion
+        modifImg, isColorFormat, imgDim = fn.importar(pathStrVar.get())
 
-        backBtn = Button(clasifWd, text = "Volver", command = cs.showPrevScreen)
-        nextBtn = Button(clasifWd, text = "Siguiente")
+        clasifText = ""
+        
+        if(isColorFormat):
+            clasifText = "Clasificación: imagen en formato de color (se cambiará a formato en tonos de grises)."
+        else:
+            clasifText = "Clasificación: imagen en tonos de gris."
 
-        cs.addNewWidgetToCurr(titleLbl,"titleLbl")
-        cs.addNewWidgetToCurr(imageLbl,"imageLbl")
-        cs.addNewWidgetToCurr(clasifLbl,"clasifLbl")
-        cs.addNewWidgetToCurr(backBtn,"backBtn")
+        clasifLbl = Label(clasifWd, text = clasifText)
+
+        backBtn = Button(clasifWd, text = "Volver", command = cs.showPrevWindow)
+        nextBtn = Button(clasifWd, text = "Siguiente", command = contrastWindow)
+
+        #Agrega Widgets a padre
+        cs.addNewWidgetToCurr(titleLbl, "titleLbl")
+        cs.addNewWidgetToCurr(originalLbl, "originalLbl")
+        cs.addNewWidgetToCurr(imageLbl, "imageLbl")
+        cs.addNewWidgetToCurr(clasifLbl, "clasifLbl")
+        cs.addNewWidgetToCurr(backBtn, "backBtn")
         cs.addNewWidgetToCurr(nextBtn,"nextBtn")
 
         cs.addNewElemToCurr(imagePI, "imagePI")
 
+        #Coloca widgets en pantalla
         cs.currWindowSet.packAllChildren()
+
+def contrastWindow():
+
+    pathStrVar = cs.globalElems["pathStrVar"]
     
+    contrastWd = Toplevel(root)
+    cs.addNewWindow(contrastWd, "contrastWd")    
+
+    titleLbl = Label(contrastWd, text = "Tarea 1 - Principios de utilización del color")
+
+    originalLbl = Label(contrastWd, text = "Imagen original:")
+
+    imagePI = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
+    imageLbl = Label(contrastWd, image = imagePI)
+    imageLbl.image = imagePI # keep a reference!
+
+    #Uso de funcion propia de clasificacion
+    modifImg, hasColor, imgDim = fn.importar(pathStrVar.get())
+
+    modifLbl = Label(contrastWd, text = "Imagen modificada:")
+    
+    modifPI = ImageTk.PhotoImage(Image.fromarray(modifImg))
+    modifImgLbl = Label(contrastWd, image = modifPI)
+    modifImgLbl.image = modifPI # keep a reference!
+    
+
+    rawBtn = Button(contrastWd, text = "Usar imagen 'en bruto'")
+    maxContrBtn = Button(contrastWd, text = "Usar imagen con contraste máximo")
+
+    backBtn = Button(contrastWd, text = "Volver", command = cs.showPrevWindow)
+    nextBtn = Button(contrastWd, text = "Siguiente")
+
+
+    #Agrega Widgets a padre
+    cs.addNewWidgetToCurr(titleLbl, "titleLbl")
+    cs.addNewWidgetToCurr(originalLbl, "originalLbl")
+    cs.addNewWidgetToCurr(imageLbl, "imageLbl")
+    cs.addNewWidgetToCurr(modifLbl, "modifLbl")
+    cs.addNewWidgetToCurr(modifImgLbl, "modifImgLbl")
+    cs.addNewWidgetToCurr(rawBtn, "rawBtn")
+    cs.addNewWidgetToCurr(maxContrBtn,"maxContrBtn")
+    cs.addNewWidgetToCurr(backBtn, "backBtn")
+    cs.addNewWidgetToCurr(nextBtn,"nextBtn")
+
+    cs.currWindowSet.packAllChildren()
 
 #Pantalla raíz
 root = Tk()
@@ -252,9 +324,10 @@ root = Tk()
 #Crea instancia global de CurrentState y guarda root
 cs = CurrentState()
 cs.addNewWindow(root, "root")
+cs.addNewGlobElem("Tarea 1 - Principios de utilización del color", "titulo")
 
 #Se abre pantalla inicial
-mainScreen()
+mainWindow()
 
 #Comienza loop para mantener GUI
 root.mainloop()
