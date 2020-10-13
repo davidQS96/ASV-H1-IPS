@@ -119,7 +119,7 @@ def maxContrasteAux(imgRGB, porciento):
 
     return newRGB, histPost
 
-maxContraste("lowContrastRGB.jpg", False, 4)
+
 
 
 

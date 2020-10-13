@@ -2,9 +2,10 @@
 from tkinter import * #Para GUI (filedialog, etc)
 from tkinter import filedialog #Manejo de archivos
 from PIL import ImageTk, Image #Manejo de imágenes
+from skimage import color
 import numpy as np
 import os
-from skimage import io
+
 import Functions as fn
 
 #-------------------------------------------------------
@@ -52,6 +53,54 @@ def browseImgFile():
         errorStrVar.set("Archivo no válido, elija uno soportado por el programa (.png, .jpg, .jpeg, .tiff, .bmp, .gif)")
         print("Se cerro ventana")
 
+    return
+
+#Esta funcion cambia imagen a usar a contraste original
+def useRawContrast():   
+    imagePI_original = cs.globalElems["image1"]
+    histPI_original =cs.globalElems["histPI1"]
+              
+    imageLbl = cs.globalElems["imageLbl2"]
+    histLbl = cs.globalElems["histLbl2"]
+
+    imagePI = ImageTk.PhotoImage(imagePI_original)
+    imageLbl.configure(image = imagePI)
+    imageLbl.image = imagePI
+
+    histPI = histPI_original
+    histLbl.configure(image = histPI)
+    histLbl.image = histPI
+
+    cs.addNewGlobElem(imagePI_original, "afterContr")
+
+#Esta funcion cambia imagen a usar a contraste maximizado
+def useMaxContrast():
+    pathStrVar = cs.globalElems["pathStrVar"]
+    isColor = cs.globalElems["isColorFormat"]
+    temp = fn.maxContraste(pathStrVar.get(), not isColor, 3)
+
+    print((temp[0]*255).astype(np.uint8))
+
+    newImage = Image.fromarray((temp[0] * 255).astype(np.uint8))
+    
+    newHist = Image.fromarray(temp[1])
+
+    newHistSize = (round(newHist.size[0] * 0.6), round(newHist.size[1] * 0.6))
+    newHist = newHist.resize(newHistSize, Image.ANTIALIAS)    
+    
+    imageLbl = cs.globalElems["imageLbl2"]
+    histLbl = cs.globalElems["histLbl2"]
+
+    imagePI = ImageTk.PhotoImage(newImage)
+    imageLbl.configure(image = imagePI)
+    imageLbl.image = imagePI
+
+    histPI = ImageTk.PhotoImage(newHist)
+    histLbl.configure(image = histPI)
+    histLbl.image = histPI
+
+    cs.addNewGlobElem(newImage, "afterContr")
+    
     return
 
 #-------------------------------------------------------
@@ -197,9 +246,7 @@ def mainWindow():
 
     #http://effbot.org/pyfaq/why-do-my-tkinter-images-not-appear.htm
     #https://www.c-sharpcorner.com/blogs/basics-for-displaying-image-in-tkinter-python#:~:text=To%20display%20images%20in%20labels,is%20present%20in%20tkinter%20package.&text=%22PhotoImage()%22%20function%20returns%20the%20image%20object.&text=To%20display%20image%20in%20Python,GIF%20and%20PGM%2FPPM%20formats.
-    imagePI = ImageTk.PhotoImage(Image.open("paisajeRGB2.jpg")) #Devolver a "Imágenes Prueba/vistaPrevia.png"
-    print(np.array(Image.open("paisajeRGB2.jpg")))
-    pathStrVar.set("paisajeRGB2.jpg") #Borrar
+    imagePI = ImageTk.PhotoImage(Image.open("Imágenes Prueba/vistaPrevia.png"))
     imageLbl = Label(root, image = imagePI)
     imageLbl.image = imagePI # keep a reference!
 
@@ -248,7 +295,9 @@ def clasifWindow():
         imageLbl.image = imagePI # keep a reference!
 
         #Uso de funcion propia de clasificacion
-        modifImg, isColorFormat, imgDim = fn.importar(pathStrVar.get())
+        modifImg, isColorFormat, imgDim = fn.importar(pathStrVar.get())        
+
+        cs.addNewGlobElem(isColorFormat, "isColorFormat")
 
         clasifText = ""
         
@@ -278,6 +327,7 @@ def clasifWindow():
 def contrastWindow():
 
     pathStrVar = cs.globalElems["pathStrVar"]
+    isColorFormat = cs.globalElems["isColorFormat"]
     
     contrastWd = Toplevel(root)
     cs.addNewWindow(contrastWd, "contrastWd")    
@@ -286,22 +336,65 @@ def contrastWindow():
 
     originalLbl = Label(contrastWd, text = "Imagen original:")
 
-    imagePI = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
-    imageLbl = Label(contrastWd, image = imagePI)
-    imageLbl.image = imagePI # keep a reference!
+    prevFrame = Frame(contrastWd)#-------------------------
+    
+    imgSk = io.imread(pathStrVar.get())
+
+    if(not isColorFormat):
+        imgSk = color.gray2rgb(imgSk)
+
+    imgHSV = color.rgb2hsv(imgSk)
+    intensity = imgHSV[:,:,2] * 255     
+    prevHist = Image.fromarray(fn.crearHistograma(imgSk))
+    newHistSize = (round(prevHist.size[0] * 0.6), round(prevHist.size[1] * 0.6))
+    prevHist = prevHist.resize(newHistSize, Image.ANTIALIAS)
+
+    histPI1 = ImageTk.PhotoImage(prevHist)
+    histLbl1 = Label(prevFrame, image = histPI1)
+    histLbl1.image = histPI1 # keep a reference!
+
+    image1 = Image.open(pathStrVar.get())
+    imagePI1 = ImageTk.PhotoImage(image1)
+    imageLbl1 = Label(prevFrame, image = imagePI1)
+    imageLbl1.image = imagePI1 # keep a reference!    
+
+    #------------------------------------------------------
 
     #Uso de funcion propia de clasificacion
     modifImg, hasColor, imgDim = fn.importar(pathStrVar.get())
 
     modifLbl = Label(contrastWd, text = "Imagen modificada:")
+
+
+    nextFrame = Frame(contrastWd)#-------------------------
+    
+    histPI2 = ImageTk.PhotoImage(prevHist)
+    histLbl2 = Label(nextFrame, image = histPI2)
+    histLbl2.image = histPI2 # keep a reference!
+
+    imagePI2 = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
+    imageLbl2 = Label(nextFrame, image = imagePI2)
+    imageLbl2.image = imagePI2 # keep a reference!
+
+
+    cs.addNewGlobElem(histPI1, "histPI1")
+    cs.addNewGlobElem(histLbl1, "histLbl1")
+    cs.addNewGlobElem(image1, "image1")
+    cs.addNewGlobElem(imageLbl1, "imageLbl1")
+    cs.addNewGlobElem(histPI2, "histPI2")
+    cs.addNewGlobElem(histLbl2, "histLbl2")
+    cs.addNewGlobElem(imagePI2, "imagePI2")
+    cs.addNewGlobElem(imageLbl2, "imageLbl2")
+
+    #------------------------------------------------------
     
     modifPI = ImageTk.PhotoImage(Image.fromarray(modifImg))
     modifImgLbl = Label(contrastWd, image = modifPI)
     modifImgLbl.image = modifPI # keep a reference!
     
 
-    rawBtn = Button(contrastWd, text = "Usar imagen 'en bruto'")
-    maxContrBtn = Button(contrastWd, text = "Usar imagen con contraste máximo")
+    rawBtn = Button(contrastWd, text = "Usar imagen 'en bruto'", command = useRawContrast)
+    maxContrBtn = Button(contrastWd, text = "Usar imagen con contraste máximo", command = useMaxContrast)
 
     backBtn = Button(contrastWd, text = "Volver", command = cs.showPrevWindow)
     nextBtn = Button(contrastWd, text = "Siguiente", command = menufiltrado)
@@ -310,15 +403,22 @@ def contrastWindow():
     #Agrega Widgets a padre
     cs.addNewWidgetToCurr(titleLbl, "titleLbl")
     cs.addNewWidgetToCurr(originalLbl, "originalLbl")
-    cs.addNewWidgetToCurr(imageLbl, "imageLbl")
+    cs.addNewWidgetToCurr(prevFrame, "prevFrame")
     cs.addNewWidgetToCurr(modifLbl, "modifLbl")
-    cs.addNewWidgetToCurr(modifImgLbl, "modifImgLbl")
+    cs.addNewWidgetToCurr(nextFrame, "nextFrame")
     cs.addNewWidgetToCurr(rawBtn, "rawBtn")
     cs.addNewWidgetToCurr(maxContrBtn,"maxContrBtn")
     cs.addNewWidgetToCurr(backBtn, "backBtn")
     cs.addNewWidgetToCurr(nextBtn,"nextBtn")
 
     cs.currWindowSet.packAllChildren()
+
+    #Realiza pack al hijos de frames
+    histLbl1.pack(side = LEFT)
+    imageLbl1.pack(side = RIGHT)
+    histLbl2.pack(side = LEFT)
+    imageLbl2.pack(side = RIGHT)
+
 
 def menufiltrado():
     def mostrar():
@@ -353,12 +453,12 @@ def menufiltrado():
 
     originalLbl = Label(menufiltradoWd, text = "Imagen original:")
 
-    imagePI = ImageTk.PhotoImage(Image.open(pathStrVar.get()))
+    imgNext = cs.globalElems["afterContr"]
+    modifImg = np.array(imgNext)
+    hasColor = cs.globalElems["isColorFormat"]
+    imagePI = ImageTk.PhotoImage(imgNext)
     imageLbl = Label(menufiltradoWd, image = imagePI)
     imageLbl.image = imagePI # keep a reference!
-
-    #Uso de funcion propia de clasificacion
-    modifImg, hasColor, imgDim = fn.importar(pathStrVar.get())
 
     #Casillas para funciones
     sal = IntVar()
@@ -433,7 +533,7 @@ def filtersaltWindow():
     modifImgLbl.image = modifPI # keep a reference!
 
     def guardar():
-        io.imsave("filtrada.jpg",filtrada)
+        io.imsave("Filtrada.jpg",filtrada)
 
 
 
@@ -457,7 +557,6 @@ def filtersaltWindow():
 
 
 
-    
 
 #Pantalla raíz
 root = Tk()
